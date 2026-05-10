@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: url-shortener
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false              # you'll paste this manually
+      - key: REDIS_URL
+        sync: false              # you'll paste this manually
+      - key: BASE_URL
+        sync: false              # you'll paste this manually
