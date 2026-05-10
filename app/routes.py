@@ -7,6 +7,7 @@ from app import models
 from app.schemas import URLCreate, URLResponse
 from app.utils import encode_base62
 from app.cache import get_cached_url, set_cached_url, delete_cached_url
+from app.rate_limiter import rate_limit_dependency
 import os
 
 router = APIRouter()
@@ -14,7 +15,11 @@ router = APIRouter()
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 
 
-@router.post("/shorten", response_model=URLResponse)
+@router.post(
+    "/shorten",
+    response_model=URLResponse,
+    dependencies=[Depends(rate_limit_dependency("shorten"))]   # ✅ protected
+)
 def shorten_url(payload: URLCreate, db: Session = Depends(get_db)):
     
     expires_at = None
@@ -34,7 +39,6 @@ def shorten_url(payload: URLCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(db_url)
 
-    # Warm the cache immediately after creation
     set_cached_url(short_code, db_url.original_url)
 
     return URLResponse(
@@ -47,13 +51,14 @@ def shorten_url(payload: URLCreate, db: Session = Depends(get_db)):
     )
 
 
-@router.get("/{short_code}")
+@router.get(
+    "/{short_code}",
+    dependencies=[Depends(rate_limit_dependency("redirect"))]  # ✅ protected
+)
 def redirect_url(short_code: str, db: Session = Depends(get_db)):
 
-    # ✅ Step 1: Check Redis first (cache hit)
     cached_url = get_cached_url(short_code)
     if cached_url:
-        # Still increment click count in DB (async would be better, fine for now)
         db_url = db.query(models.URL).filter(
             models.URL.short_code == short_code
         ).first()
@@ -62,7 +67,6 @@ def redirect_url(short_code: str, db: Session = Depends(get_db)):
             db.commit()
         return RedirectResponse(url=cached_url, status_code=302)
 
-    # ✅ Step 2: Cache miss — go to PostgreSQL
     db_url = db.query(models.URL).filter(
         models.URL.short_code == short_code,
         models.URL.is_active == True
@@ -74,10 +78,7 @@ def redirect_url(short_code: str, db: Session = Depends(get_db)):
     if db_url.expires_at and datetime.now(timezone.utc) > db_url.expires_at:
         raise HTTPException(status_code=410, detail="This link has expired")
 
-    # ✅ Step 3: Store in Redis for next time (cache population)
     set_cached_url(short_code, db_url.original_url)
-
-    # Increment click count
     db_url.click_count += 1
     db.commit()
 
@@ -117,8 +118,6 @@ def delete_url(short_code: str, db: Session = Depends(get_db)):
 
     db_url.is_active = False
     db.commit()
-
-    # ✅ Remove from cache too — stale cache = wrong redirects
     delete_cached_url(short_code)
 
     return {"message": f"URL {short_code} has been deactivated"}
