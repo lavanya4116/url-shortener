@@ -25,7 +25,7 @@ async def add_rate_limit_headers(request: Request, call_next):
     return response
 
 
-app.include_router(router)
+
 
 
 @app.get("/health")
@@ -35,3 +35,5 @@ def health_check():
         "redis": "healthy" if is_redis_healthy() else "unhealthy",
         "database": "connected"
     }
+
+app.include_router(router)

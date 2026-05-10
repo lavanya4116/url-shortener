@@ -1,0 +1,50 @@
+version: "3.9"
+
+services:
+
+  # PostgreSQL database
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: urluser
+      POSTGRES_PASSWORD: "lavanya@2006"
+      POSTGRES_DB: urlshortener
+    volumes:
+      - postgres_data:/var/lib/postgresql/data    
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U urluser -d urlshortener"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis cache
+  redis:
+    image: redis:7-alpine
+    volumes:
+      - redis_data:/data                          # persist cache
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # FastAPI application
+  app:
+    build: .                                      # build from our Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://urluser:lavanya%402006@db/urlshortener
+      REDIS_URL: redis://redis:6379
+      BASE_URL: http://localhost:8000
+    depends_on:
+      db:
+        condition: service_healthy                # wait for DB to be ready
+      redis:
+        condition: service_healthy                # wait for Redis to be ready
+    volumes:
+      - .:/app                                    # mount code for hot reload
+
+volumes:
+  postgres_data:
+  redis_data:

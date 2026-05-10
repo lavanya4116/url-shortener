@@ -49,7 +49,25 @@ def shorten_url(payload: URLCreate, db: Session = Depends(get_db)):
         created_at=db_url.created_at,
         expires_at=db_url.expires_at
     )
+@router.get("/info/{short_code}", response_model=URLResponse)
+def get_url_info(short_code: str, db: Session = Depends(get_db)):
 
+    db_url = db.query(models.URL).filter(
+        models.URL.short_code == short_code,
+        models.URL.is_active == True
+    ).first()
+
+    if not db_url:
+        raise HTTPException(status_code=404, detail="Short URL not found")
+
+    return URLResponse(
+        short_code=db_url.short_code,
+        original_url=db_url.original_url,
+        short_url=f"{BASE_URL}/{db_url.short_code}",
+        click_count=db_url.click_count,
+        created_at=db_url.created_at,
+        expires_at=db_url.expires_at
+    )
 
 @router.get(
     "/{short_code}",
@@ -84,26 +102,6 @@ def redirect_url(short_code: str, db: Session = Depends(get_db)):
 
     return RedirectResponse(url=db_url.original_url, status_code=302)
 
-
-@router.get("/info/{short_code}", response_model=URLResponse)
-def get_url_info(short_code: str, db: Session = Depends(get_db)):
-
-    db_url = db.query(models.URL).filter(
-        models.URL.short_code == short_code,
-        models.URL.is_active == True
-    ).first()
-
-    if not db_url:
-        raise HTTPException(status_code=404, detail="Short URL not found")
-
-    return URLResponse(
-        short_code=db_url.short_code,
-        original_url=db_url.original_url,
-        short_url=f"{BASE_URL}/{db_url.short_code}",
-        click_count=db_url.click_count,
-        created_at=db_url.created_at,
-        expires_at=db_url.expires_at
-    )
 
 
 @router.delete("/{short_code}")
