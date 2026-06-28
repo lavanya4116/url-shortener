@@ -4,18 +4,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Create Redis client
 redis_client = redis.Redis.from_url(
     os.getenv("REDIS_URL", "redis://localhost:6379"),
-    decode_responses=True      # returns strings, not bytes
+    decode_responses=True
 )
 
-# How long to cache a URL (in seconds)
-CACHE_TTL = 3600               # 1 hour
+CACHE_TTL = 3600  # 1 hour for URL cache
 
 
 def get_cached_url(short_code: str) -> str | None:
-    """Try to get original URL from Redis cache"""
+    """Get original URL from Redis cache"""
     return redis_client.get(f"url:{short_code}")
 
 
@@ -29,12 +27,55 @@ def set_cached_url(short_code: str, original_url: str) -> None:
 
 
 def delete_cached_url(short_code: str) -> None:
-    """Remove URL from cache (called on delete)"""
+    """Remove URL from cache"""
     redis_client.delete(f"url:{short_code}")
 
 
+
+def increment_click_redis(short_code: str) -> int:
+    """
+    Atomically increment click count in Redis.
+    Returns new count.
+    This never touches PostgreSQL — that's the whole point.
+    """
+    key = f"clicks:{short_code}"
+    count = redis_client.incr(key)
+    return count
+
+
+def get_redis_click_count(short_code: str) -> int:
+    """Get buffered click count from Redis"""
+    key = f"clicks:{short_code}"
+    val = redis_client.get(key)
+    return int(val) if val else 0
+
+
+def get_all_pending_clicks() -> dict[str, int]:
+    """
+    Get all short codes that have pending click counts in Redis.
+    Used by the background flush job.
+    Returns dict of {short_code: count}
+    """
+    keys = redis_client.keys("clicks:*")
+    if not keys:
+        return {}
+
+    result = {}
+    for key in keys:
+        val = redis_client.get(key)
+        if val:
+            short_code = key.replace("clicks:", "")
+            result[short_code] = int(val)
+
+    return result
+
+
+def reset_click_count(short_code: str) -> None:
+    """Reset Redis click counter after flushing to DB"""
+    redis_client.delete(f"clicks:{short_code}")
+
+
 def is_redis_healthy() -> bool:
-    """Health check for Redis"""
     try:
         redis_client.ping()
         return True
