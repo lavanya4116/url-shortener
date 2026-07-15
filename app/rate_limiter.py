@@ -1,4 +1,5 @@
 from app.cache import redis_client
+from app.utils import get_client_ip
 from datetime import datetime
 from fastapi import Request, HTTPException
 
@@ -48,8 +49,8 @@ def rate_limit_dependency(endpoint: str = "global"):
     Usage: Depends(rate_limit_dependency("shorten"))
     """
     def dependency(request: Request):
-        # Get client IP
-        ip = request.client.host
+        # Get client IP (accounts for Render's reverse proxy)
+        ip = get_client_ip(request)
 
         # Check rate limit
         is_limited, count, limit = is_rate_limited(ip, endpoint)

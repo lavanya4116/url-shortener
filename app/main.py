@@ -6,6 +6,7 @@ from app.routes import router
 from app.cache import is_redis_healthy
 from app.rate_limiter import get_remaining_requests
 from app.tasks import flush_click_counts, cleanup_expired_urls
+from app.utils import get_client_ip
 
 
 app = FastAPI(title="URL Shortener", version="1.0.0")
@@ -28,15 +29,12 @@ async def startup_event():
 async def add_rate_limit_headers(request, call_next):
     response = await call_next(request)
     if request.client:
-        ip = request.client.host
+        ip = get_client_ip(request)
         remaining = get_remaining_requests(ip)
         response.headers["X-RateLimit-Limit"] = "10"
         response.headers["X-RateLimit-Remaining"] = str(remaining)
         response.headers["X-RateLimit-Window"] = "60s"
     return response
-
-
-app.include_router(router)
 
 
 @app.get("/health")
@@ -46,3 +44,6 @@ def health_check():
         "redis": "healthy" if is_redis_healthy() else "unhealthy",
         "database": "connected"
     }
+
+
+app.include_router(router)

@@ -2,7 +2,7 @@ import asyncio
 from sqlalchemy.orm import Session
 from app.database import SessionLocal
 from app import models
-from app.cache import get_all_pending_clicks, reset_click_count
+from app.cache import get_all_pending_clicks, reset_click_count, delete_cached_url
 
 
 async def flush_click_counts():
@@ -89,7 +89,10 @@ async def _do_cleanup():
 
         for url in expired:
             url.is_active = False
-            # Also remove from Redis cache
+            # Also remove from Redis cache — without this, an expired URL that's
+            # still cached would keep redirecting for up to CACHE_TTL (1hr) since
+            # the redirect endpoint trusts a cache hit without re-checking is_active/expiry.
+            delete_cached_url(url.short_code)
             reset_click_count(url.short_code)
 
         db.commit()

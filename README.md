@@ -1,7 +1,7 @@
 # ⚡ URL Shortener
 
 A production-ready URL shortening service built with FastAPI, PostgreSQL, and Redis.
-Live at: **[/url-shortener-fqp8.onrender.com](https:///url-shortener-fqp8.onrender.com/docs)**
+Live at: **[url-shortener-fqp8.onrender.com](https://url-shortener-fqp8.onrender.com/docs)**
 
 ## 🏗️ Architecture
 
@@ -58,14 +58,14 @@ Swagger docs at `http://localhost:8000/docs`
 
 ```bash
 # Shorten a URL
-curl -X POST https:///url-shortener-fqp8.com/shorten \
+curl -X POST https://url-shortener-fqp8.onrender.com/shorten \
   -H "Content-Type: application/json" \
   -d '{"original_url": "https://github.com", "expires_in_days": 30}'
 
 # Response
 {
   "short_code": "1",
-  "short_url": "https:///url-shortener-fqp8.com/1",
+  "short_url": "https://url-shortener-fqp8.onrender.com/1",
   "click_count": 0,
   "expires_at": "2024-02-14T10:30:00"
 }
