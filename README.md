@@ -50,9 +50,10 @@ Swagger docs at `http://localhost:8000/docs`
 |--------|----------|-------------|
 | POST | `/shorten` | Create a short URL |
 | GET | `/{short_code}` | Redirect to original URL |
-| GET | `/info/{short_code}` | Get analytics without redirecting |
+| GET | `/info/{short_code}` | Retrieve information without redirecting |
 | DELETE | `/{short_code}` | Deactivate a short URL |
 | GET | `/health` | Service health check |
+| GET | `/analytics/{short_code}` | Retrieve click analytics without redirecting |
 
 ### Example
 
